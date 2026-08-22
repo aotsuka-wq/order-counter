@@ -57,7 +57,7 @@
     const productData = [
       { id: "item1", name: "商品A", price: 500, maxStock: 20 },
       { id: "item2", name: "商品B", price: 1200, maxStock: 10 },
-      { id: "item3", name: "商品C（限定品）", price: 2500, maxStock: 5 },
+      { id: "item3", name: "商品C", price: 2500, maxStock: 5 },
       { id: "item4", name: "商品D", price: 350, maxStock: 50 }
     ];
 
@@ -127,10 +127,10 @@
         cardEl.classList.add("sold-out");
         plusBtn.disabled = true; // ＋ボタンを押せなくする
       } else if (remaining <= 3) {
-        stockEl.innerText = `⚠️ 残りあと ${remaining} 個（目安: ${product.maxStock}）`;
+        stockEl.innerText = `⚠️ 残りあと ${remaining} 個（在庫: ${product.maxStock}）`;
         stockEl.classList.add("warning");
       } else {
-        stockEl.innerText = `残りあと ${remaining} 個（目安: ${product.maxStock}）`;
+        stockEl.innerText = `残りあと ${remaining} 個（在庫: ${product.maxStock}）`;
       }
     }
 
