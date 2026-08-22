@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>注文・金額カンタン集計</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; font-size: 18px; max-width: 500px; margin: 0 auto; background: #f4f6f9; }
+    h2 { text-align: center; color: #333; margin-bottom: 5px; }
+    .total-box { background: #007bff; color: white; padding: 15px; border-radius: 10px; text-align: center; font-size: 22px; font-weight: bold; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); position: sticky; top: 10px; z-index: 100; }
+    .total-price { font-size: 32px; display: block; margin-top: 5px; color: #fffb00; }
+    .item-list { margin-bottom: 30px; }
+    .item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 15px; background: white; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: background 0.3s; }
+    .item.sold-out { background: #ffebeb; } /* 売り切れ時の背景 */
+    .item-info { display: flex; flex-direction: column; width: 55%; }
+    .item-name { font-weight: bold; font-size: 18px; word-break: break-all; }
+    .item-price { font-size: 14px; color: #666; margin-top: 2px; }
+    .stock-info { font-size: 13px; color: #28a745; font-weight: bold; margin-top: 2px; }
+    .stock-info.warning { color: #fd7e14; } /* 残りわずかの文字色 */
+    .stock-info.danger { color: #dc3545; }  /* 売り切れの文字色 */
+    .item-count { font-size: 26px; color: #007bff; font-weight: bold; margin-top: 5px; }
+    .btn-group { display: flex; gap: 8px; width: 45%; justify-content: flex-end; }
+    button { font-size: 20px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; user-select: none; -webkit-user-select: none; }
+    .btn-plus { background: #007bff; color: white; flex: 2; padding: 15px 0; }
+    .btn-plus:disabled { background: #cccccc; color: #666666; cursor: not-allowed; }
+    .btn-minus { background: #e0e0e0; color: #333; flex: 1; padding: 15px 0; font-size: 18px; }
+    button:active:not(:disabled) { opacity: 0.7; }
+    .footer-btns { margin-top: 20px; display: flex; gap: 10px; }
+    #reset { background: #dc3545; color: white; width: 100%; font-size: 16px; padding: 15px; border-radius: 8px; }
+  </style>
+</head>
+<body>
+
+  <h2>📱 タッチ注文集計</h2>
+  
+  <!-- 上部に固定される合計金額エリア -->
+  <div class="total-box">
+    現在の合計金額
+    <span class="total-price">¥ <span id="grand-total">0</span></span>
+  </div>
+  
+  <!-- 商品リストを表示する場所 -->
+  <div id="item-list-container" class="item-list"></div>
+
+  <div class="footer-btns">
+    <button id="reset" onclick="resetCount()">すべてのデータを0にリセット</button>
+  </div>
+
+  <script>
+    // --------------------------------------------------
+    // 【商品リストの設定】
+    // id: 重複しない英数字
+    // name: 商品名
+    // price: 単価（半角数字）
+    // maxStock: 在庫数の目安（半角数字）
+    // --------------------------------------------------
+    const productData = [
+      { id: "item1", name: "商品A", price: 500, maxStock: 20 },
+      { id: "item2", name: "商品B", price: 1200, maxStock: 10 },
+      { id: "item3", name: "商品C（限定品）", price: 2500, maxStock: 5 },
+      { id: "item4", name: "商品D", price: 350, maxStock: 50 }
+    ];
+
+    const container = document.getElementById('item-list-container');
+
+    // 画面に商品リストを自動生成
+    productData.forEach(p => {
+      const savedCount = localStorage.getItem(p.id) || 0;
+      
+      const itemDiv = document.createElement('div');
+      itemDiv.className = 'item';
+      itemDiv.id = `card-${p.id}`;
+      itemDiv.innerHTML = `
+        <div class="item-info">
+          <span class="item-name">${p.name}</span>
+          <span class="item-price">単価: ¥${p.price.toLocaleString()}</span>
+          <span class="stock-info" id="stock-${p.id}"></span>
+          <span class="item-count" id="count-${p.id}">${savedCount}</span>
+        </div>
+        <div class="btn-group">
+          <button class="btn-minus" onclick="changeCount('${p.id}', -1)">-</button>
+          <button class="btn-plus" id="btn-plus-${p.id}" onclick="changeCount('${p.id}', 1)">＋1</button>
+        </div>
+      `;
+      container.appendChild(itemDiv);
+      // 初期の在庫表示・ボタン状態を更新
+      updateItemStatus(p.id, parseInt(savedCount));
+    });
+
+    // 初回の合計金額計算
+    updateGrandTotal();
+
+    // 個数を増減する処理
+    function changeCount(id, val) {
+      const countEl = document.getElementById('count-' + id);
+      const product = productData.find(p => p.id === id);
+      let current = parseInt(countEl.innerText);
+      let next = current + val;
+      
+      if (next < 0) next = 0; // 0個未満にはしない
+      if (next > product.maxStock) next = product.maxStock; // 在庫目安を超えない
+      
+      countEl.innerText = next;
+      localStorage.setItem(id, next); // スマホに保存
+      
+      updateItemStatus(id, next); // 在庫見た目の更新
+      updateGrandTotal(); // 合計金額を再計算
+    }
+
+    // 商品ごとの在庫表示やボタンの無効化を切り替える処理
+    function updateItemStatus(id, currentCount) {
+      const product = productData.find(p => p.id === id);
+      const stockEl = document.getElementById(`stock-${id}`);
+      const plusBtn = document.getElementById(`btn-plus-${id}`);
+      const cardEl = document.getElementById(`card-${id}`);
+      
+      const remaining = product.maxStock - currentCount;
+      
+      // 見た目のリセット
+      stockEl.className = "stock-info";
+      cardEl.classList.remove("sold-out");
+      plusBtn.disabled = false;
+
+      if (remaining <= 0) {
+        stockEl.innerText = "【完売】在庫がありません";
+        stockEl.classList.add("danger");
+        cardEl.classList.add("sold-out");
+        plusBtn.disabled = true; // ＋ボタンを押せなくする
+      } else if (remaining <= 3) {
+        stockEl.innerText = `⚠️ 残りあと ${remaining} 個（目安: ${product.maxStock}）`;
+        stockEl.classList.add("warning");
+      } else {
+        stockEl.innerText = `残りあと ${remaining} 個（目安: ${product.maxStock}）`;
+      }
+    }
+
+    // 合計金額を計算して画面を更新する処理
+    function updateGrandTotal() {
+      let total = 0;
+      productData.forEach(p => {
+        const count = parseInt(document.getElementById('count-' + p.id).innerText);
+        total += p.price * count;
+      });
+      document.getElementById('grand-total').innerText = total.toLocaleString();
+    }
+
+    // リセット処理
+    function resetCount() {
+      if(confirm('すべての商品の個数を0に戻しますか？\n（保存されているデータも消去されます）')) {
+        productData.forEach(p => {
+          document.getElementById('count-' + p.id).innerText = 0;
+          localStorage.removeItem(p.id);
+          updateItemStatus(p.id, 0);
+        });
+        updateGrandTotal();
+      }
+    }
+  </script>
+
+</body>
+</html>
