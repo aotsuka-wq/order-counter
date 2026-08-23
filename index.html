@@ -434,15 +434,40 @@
       dailyTotalEl.innerText = getDailyTotal().toLocaleString();
     }
 
-    // 現在の最終集計をCSVファイルとしてダウンロードする処理
+    // 確定時点の商品名・価格ごとに、販売履歴を集計する
+    function getDailySummaryRows() {
+      const summaryMap = {};
+
+      getSalesHistory().forEach(record => {
+        const name = record.productName || '商品名未設定';
+        const price = parseInt(record.price) || 0;
+        const quantity = parseInt(record.quantityChange) || 0;
+        const key = `${name}__${price}`;
+
+        if (!summaryMap[key]) {
+          summaryMap[key] = {
+            productName: name,
+            price: price,
+            quantity: 0,
+            subtotal: 0
+          };
+        }
+
+        summaryMap[key].quantity += quantity;
+        summaryMap[key].subtotal += price * quantity;
+      });
+
+      return Object.values(summaryMap).filter(row => row.quantity !== 0);
+    }
+
+    // 確定済みの販売履歴をCSVファイルとしてダウンロードする処理
     function downloadSummaryCsv() {
       const rows = [
         ['商品名', '価格', '個数', '売上小計']
       ];
 
-      productData.forEach(p => {
-        const count = getSoldCount(p.id);
-        rows.push([p.name, p.price, count, p.price * count]);
+      getDailySummaryRows().forEach(row => {
+        rows.push([row.productName, row.price, row.quantity, row.subtotal]);
       });
 
       const total = getDailyTotal();
@@ -496,8 +521,10 @@
 
     // 本日の確定売上金額を数値で返す
     function getDailyTotal() {
-      return productData.reduce((sum, p) => {
-        return sum + (p.price * getSoldCount(p.id));
+      return getSalesHistory().reduce((sum, record) => {
+        const price = parseInt(record.price) || 0;
+        const quantity = parseInt(record.quantityChange) || 0;
+        return sum + (price * quantity);
       }, 0);
     }
 
