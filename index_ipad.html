@@ -65,9 +65,10 @@
     .footer-btns { margin-top: 20px; display: flex; gap: 10px; }
     #reset { background: #dc3545; color: white; width: 100%; font-size: 16px; padding: 15px; border-radius: 8px; }
     @media (min-width: 760px) {
-      body { max-width: none; height: 100%; padding: 10px; overflow: hidden; box-sizing: border-box; }
+      :root { --safari-top-space: 32px; }
+      body { max-width: none; height: 100%; padding: calc(10px + var(--safari-top-space)) 10px 10px; overflow: hidden; box-sizing: border-box; }
       h2 { margin: 0 0 8px; font-size: 20px; }
-      .ipad-layout { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.9fr); gap: 12px; height: calc(100vh - 42px); }
+      .ipad-layout { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.9fr); gap: 12px; height: calc(100vh - 42px - var(--safari-top-space)); }
       .order-column, .control-column { min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; overscroll-behavior: contain; }
       .order-column { display: block; padding-right: 2px; }
       .control-column { display: grid; grid-template-columns: 1fr; gap: 10px; align-content: start; padding-right: 2px; }
