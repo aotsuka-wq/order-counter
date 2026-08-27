@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>注文・金額カンタン集計</title>
+  <style>
+    html { height: 100%; }
+    body { font-family: sans-serif; padding: 12px; font-size: 18px; max-width: 500px; margin: 0 auto; background: #f4f6f9; touch-action: manipulation; }
+    h2 { text-align: center; color: #333; margin-bottom: 5px; }
+    .ipad-layout { display: block; }
+    .total-box { background: #007bff; color: white; padding: 12px; border-radius: 10px; text-align: center; font-size: 20px; font-weight: bold; margin-bottom: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); position: sticky; top: 8px; z-index: 100; }
+    .total-price { font-size: 30px; display: block; margin-top: 4px; color: #fffb00; }
+    .order-summary { margin-top: 8px; padding: 8px; border-radius: 8px; background: rgba(255,255,255,0.16); color: white; font-size: 13px; font-weight: normal; text-align: left; line-height: 1.45; }
+    .order-summary-title { font-weight: bold; margin-bottom: 3px; }
+    .order-summary-row { display: flex; justify-content: space-between; gap: 8px; border-top: 1px solid rgba(255,255,255,0.18); padding-top: 3px; margin-top: 3px; }
+    .order-summary-empty { text-align: center; opacity: 0.9; }
+    .item-list { margin-bottom: 12px; }
+    .item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding: 10px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: background 0.3s; }
+    .item.sold-out { background: #ffebeb; } /* 売り切れ時の背景 */
+    .item-info { display: flex; flex-direction: column; width: 55%; }
+    .item-name { font-weight: bold; font-size: 18px; word-break: break-all; }
+    .item-price { font-size: 14px; color: #666; margin-top: 2px; }
+    .stock-info { font-size: 13px; color: #28a745; font-weight: bold; margin-top: 2px; }
+    .stock-info.warning { color: #fd7e14; } /* 残りわずかの文字色 */
+    .stock-info.danger { color: #dc3545; }  /* 売り切れの文字色 */
+    .item-count { font-size: 26px; color: #007bff; font-weight: bold; margin-top: 5px; }
+    .sold-count { font-size: 12px; color: #555; margin-top: 2px; }
+    .btn-group { display: flex; gap: 8px; width: 45%; justify-content: flex-end; }
+    button { font-size: 20px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+    .btn-plus { background: #007bff; color: white; flex: 2; padding: 15px 0; }
+    .btn-plus:disabled { background: #cccccc; color: #666666; cursor: not-allowed; }
+    .btn-minus { background: #e0e0e0; color: #333; flex: 1; padding: 15px 0; font-size: 18px; }
+    button:active:not(:disabled) { opacity: 0.7; }
+    .tool-panel { background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .tool-title { font-size: 16px; font-weight: bold; color: #333; margin: 0 0 10px; }
+    .cash-buttons, .export-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .cash-buttons button, .export-buttons button { padding: 14px 8px; font-size: 16px; color: white; }
+    .cash-btn { background: #198754; }
+    .clear-btn { background: #6c757d; }
+    .confirm-btn { background: #198754; grid-column: 1 / -1; }
+    .cancel-order-btn { background: #fd7e14; grid-column: 1 / -1; }
+    .clear-order-btn { background: #6c757d; grid-column: 1 / -1; }
+    .custom-cash { display: flex; gap: 8px; margin-top: 10px; }
+    .custom-cash input { flex: 1; min-width: 0; font-size: 18px; padding: 12px 10px; border: 1px solid #cfd4da; border-radius: 8px; box-sizing: border-box; }
+    .custom-cash button { background: #198754; color: white; padding: 12px; font-size: 15px; white-space: nowrap; }
+    #export-csv, #export-detail-csv { background: #0d6efd; grid-column: 1 / -1; }
+    .change-result { margin-top: 10px; padding: 12px; border-radius: 8px; background: #f4f6f9; font-weight: bold; color: #333; text-align: center; min-height: 24px; }
+    .change-result.short { color: #dc3545; }
+    .daily-total { margin-top: 10px; padding: 12px; border-radius: 8px; background: #eef7f1; color: #198754; font-weight: bold; text-align: center; }
+    .admin-toggle { background: #343a40; color: white; width: 100%; padding: 12px; font-size: 15px; margin-bottom: 10px; }
+    .admin-panel { display: none; }
+    .admin-panel.open { display: block; }
+    .admin-row { display: grid; grid-template-columns: 1.2fr 0.7fr 0.7fr 54px; gap: 6px; margin-bottom: 8px; align-items: center; }
+    .admin-labels { font-size: 12px; color: #666; font-weight: bold; }
+    .admin-row input { width: 100%; box-sizing: border-box; font-size: 16px; padding: 10px 8px; border: 1px solid #cfd4da; border-radius: 8px; }
+    .admin-delete { background: #dc3545; color: white; padding: 10px 4px; font-size: 13px; }
+    .admin-add { background: #198754; color: white; width: 100%; padding: 12px; font-size: 16px; margin-bottom: 8px; }
+    .admin-save { background: #0d6efd; color: white; width: 100%; padding: 12px; font-size: 16px; margin-top: 4px; }
+    .admin-close { background: #6c757d; color: white; width: 100%; padding: 12px; font-size: 16px; margin-top: 8px; }
+    .admin-note { font-size: 12px; color: #666; line-height: 1.4; margin: 8px 0 0; }
+    #sales-chart { width: 100%; height: 220px; display: block; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; }
+    .chart-note { font-size: 12px; color: #666; margin-top: 8px; line-height: 1.4; }
+    .footer-btns { margin-top: 20px; display: flex; gap: 10px; }
+    #reset { background: #dc3545; color: white; width: 100%; font-size: 16px; padding: 15px; border-radius: 8px; }
+    @media (min-width: 760px) {
+      body { max-width: none; height: 100%; padding: 10px; overflow: hidden; box-sizing: border-box; }
+      h2 { margin: 0 0 8px; font-size: 20px; }
+      .ipad-layout { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.9fr); gap: 12px; height: calc(100vh - 42px); }
+      .order-column, .control-column { min-height: 0; }
+      .order-column { display: flex; flex-direction: column; gap: 10px; }
+      .control-column { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-content: start; overflow: hidden; }
+      .total-box { position: static; margin-bottom: 0; padding: 10px; font-size: 18px; }
+      .total-price { font-size: 34px; margin-top: 2px; }
+      .order-summary { max-height: 110px; overflow: hidden; font-size: 12px; }
+      .item-list { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; align-content: start; margin-bottom: 0; overflow: hidden; }
+      .item { min-height: 88px; margin-bottom: 0; padding: 9px; }
+      .item-name { font-size: 16px; }
+      .item-price { font-size: 13px; }
+      .stock-info { font-size: 12px; }
+      .sold-count { font-size: 11px; }
+      .item-count { font-size: 24px; margin-top: 2px; }
+      .btn-group { gap: 6px; width: 46%; }
+      .btn-plus { padding: 18px 0; font-size: 20px; }
+      .btn-minus { padding: 18px 0; font-size: 17px; }
+      .tool-panel { margin-bottom: 0; padding: 10px; }
+      .tool-title { font-size: 14px; margin-bottom: 8px; }
+      .cash-buttons, .export-buttons { gap: 8px; }
+      .cash-buttons button, .export-buttons button { padding: 12px 6px; font-size: 14px; }
+      .custom-cash { margin-top: 8px; }
+      .custom-cash input { padding: 10px 8px; font-size: 16px; }
+      .custom-cash button { padding: 10px; font-size: 14px; }
+      .change-result { padding: 10px; font-size: 15px; }
+      #sales-chart { height: 150px; }
+      .chart-note { font-size: 11px; max-height: 34px; overflow: hidden; }
+      .footer-btns { margin-top: 0; }
+      #reset, .admin-toggle { padding: 12px 8px; font-size: 14px; margin-bottom: 0; }
+      .admin-toggle, .admin-panel, .footer-btns, .control-wide { grid-column: 1 / -1; }
+      .admin-panel.open { max-height: 270px; overflow: auto; }
+      .daily-total { padding: 10px; font-size: 15px; }
+    }
+    @media (max-width: 420px) {
+      body { padding: 8px; font-size: 16px; }
+      h2 { font-size: 18px; margin: 4px 0 6px; }
+      .item-name { font-size: 16px; }
+      .stock-info, .sold-count { font-size: 11px; }
+      .item-count { font-size: 24px; }
+      .btn-group { gap: 6px; }
+      .btn-plus, .btn-minus { padding: 12px 0; }
+      .cash-buttons button, .export-buttons button { padding: 12px 6px; font-size: 15px; }
+      .admin-row { grid-template-columns: 1fr 70px 70px 48px; gap: 4px; }
+      .admin-row input { font-size: 14px; padding: 9px 6px; }
+    }
+  </style>
+</head>
+<body>
+
+  <h2>📱 タッチ注文集計</h2>
+  
+  <main class="ipad-layout">
+    <section class="order-column">
+      <!-- 上部に固定される合計金額エリア -->
+      <div class="total-box">
+        現在の注文金額
+        <span class="total-price">¥ <span id="grand-total">0</span></span>
+        <div id="order-summary" class="order-summary">
+          <div class="order-summary-empty">注文はまだありません</div>
+        </div>
+      </div>
+      
+      <!-- 商品リストを表示する場所 -->
+      <div id="item-list-container" class="item-list"></div>
+    </section>
+
+    <section class="control-column">
+      <div class="tool-panel">
+        <p class="tool-title">会計確定</p>
+        <div class="export-buttons">
+          <button class="confirm-btn" onclick="finalizeOrder()">この注文を確定</button>
+          <button class="cancel-order-btn" onclick="cancelLastOrder()">直前の会計を取り消し</button>
+          <button class="clear-order-btn" onclick="clearCurrentOrder()">現在の注文だけクリア</button>
+        </div>
+      </div>
+
+      <div class="tool-panel">
+        <p class="tool-title">お釣り計算</p>
+        <div class="cash-buttons">
+          <button class="cash-btn" onclick="calculateChange(500)">500円預かり</button>
+          <button class="cash-btn" onclick="calculateChange(1000)">1,000円預かり</button>
+          <button class="cash-btn" onclick="calculateChange(5000)">5,000円預かり</button>
+          <button class="cash-btn" onclick="calculateChange(10000)">10,000円預かり</button>
+          <button class="clear-btn" onclick="clearChange()">表示クリア</button>
+        </div>
+        <div class="custom-cash">
+          <input id="custom-cash-input" type="number" min="0" inputmode="numeric" placeholder="預かり金額を入力">
+          <button onclick="calculateCustomChange()">計算</button>
+        </div>
+        <div id="change-result" class="change-result">預かり金額をタップしてください</div>
+      </div>
+
+      <div class="tool-panel control-wide">
+        <p class="tool-title">時間帯別 売上推移</p>
+        <canvas id="sales-chart" width="460" height="220"></canvas>
+        <div id="chart-note" class="chart-note">販売履歴が入ると、時間帯ごとの売上個数を表示します。</div>
+      </div>
+
+      <div class="footer-btns">
+        <button id="reset" onclick="resetCount()">すべてのデータを0にリセット</button>
+      </div>
+
+      <button class="admin-toggle" onclick="openAdminPanel()">商品設定を編集</button>
+
+      <div id="admin-panel" class="tool-panel admin-panel">
+        <p class="tool-title">管理画面：商品設定</p>
+        <div class="admin-row admin-labels">
+          <div>商品名</div>
+          <div>価格</div>
+          <div>在庫</div>
+          <div>削除</div>
+        </div>
+        <div id="admin-form"></div>
+        <button class="admin-add" onclick="addProductSetting()">商品を追加</button>
+        <button class="admin-save" onclick="saveProductSettings()">商品設定を保存</button>
+        <button class="admin-close" onclick="closeAdminPanel()">閉じる</button>
+        <p class="admin-note">価格と在庫は半角数字で入力してください。保存後、画面の商品名・価格・CSV・グラフ表示に反映されます。</p>
+      </div>
+
+      <div class="tool-panel control-wide">
+        <p class="tool-title">本日の集計・CSV書き出し</p>
+        <div class="export-buttons">
+          <button id="export-csv" onclick="downloadSummaryCsv()">集計CSVをダウンロード</button>
+          <button id="export-detail-csv" onclick="downloadDetailCsv()">販売時刻別CSVをダウンロード</button>
+        </div>
+        <div class="daily-total">本日の確定売上：¥ <span id="daily-total">0</span></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // --------------------------------------------------
+    // 【商品リストの設定】
+    // id: 重複しない英数字
+    // name: 商品名
+    // price: 単価（半角数字）
+    // maxStock: 在庫数の目安（半角数字）
+    // --------------------------------------------------
+    const defaultProductData = [
+      { id: "item1", name: "商品A", price: 100, maxStock: 20 },
+      { id: "item2", name: "商品B", price: 200, maxStock: 10 },
+      { id: "item3", name: "商品C", price: 300, maxStock: 5 },
+      { id: "item4", name: "商品D", price: 300, maxStock: 50 }
+    ];
+
+    const productSettingsKey = 'productSettings';
+    const adminPassword = '1234';
+    let productData = loadProductSettings();
+
+    // タップ履歴を保存するlocalStorageキー
+    const salesHistoryKey = 'salesHistory';
+    const orderHistoryKey = 'orderHistory';
+
+    // 商品カードを差し込む親要素を取得
+    const container = document.getElementById('item-list-container');
+    const chartCanvas = document.getElementById('sales-chart');
+    const chartNote = document.getElementById('chart-note');
+    const changeResult = document.getElementById('change-result');
+    const dailyTotalEl = document.getElementById('daily-total');
+    const orderSummaryEl = document.getElementById('order-summary');
+    const adminPanel = document.getElementById('admin-panel');
+    const adminForm = document.getElementById('admin-form');
+    const customCashInput = document.getElementById('custom-cash-input');
+
+    // 画面に商品リストを自動生成
+    renderProductList();
+
+    function renderProductList() {
+      container.innerHTML = '';
+      if (productData.length === 0) {
+        container.innerHTML = '<div class="tool-panel">商品設定を編集から商品を追加してください。</div>';
+        return;
+      }
+      productData.forEach(p => {
+      // 前回途中だった注文数がブラウザに保存されていれば復元する
+      const savedOrderCount = getCurrentOrderCount(p.id);
+      const savedSoldCount = getSoldCount(p.id);
+      
+      // 商品1件分の表示カードを作成する
+      const itemDiv = document.createElement('div');
+      itemDiv.className = 'item';
+      itemDiv.id = `card-${p.id}`;
+      itemDiv.innerHTML = `
+        <div class="item-info">
+          <span class="item-name">${escapeHtml(p.name)}</span>
+          <span class="item-price">単価: ¥${p.price.toLocaleString()}</span>
+          <span class="stock-info" id="stock-${p.id}"></span>
+          <span class="item-count" id="count-${p.id}">${savedOrderCount}</span>
+          <span class="sold-count" id="sold-${p.id}">本日確定: ${savedSoldCount}個</span>
+        </div>
+        <div class="btn-group">
+          <button class="btn-minus" onclick="changeCount('${p.id}', -1)">-</button>
+          <button class="btn-plus" id="btn-plus-${p.id}" onclick="changeCount('${p.id}', 1)">＋1</button>
+        </div>
+      `;
+      container.appendChild(itemDiv);
+
+      // 初期の在庫表示・ボタン状態を更新
+      updateItemStatus(p.id);
+    });
+    }
+
+    // 初回の合計金額計算
+    updateGrandTotal();
+    updateOrderSummary();
+    updateDailyTotal();
+    drawSalesChart();
+
+    // iPhoneなどでボタンを連打したときのダブルタップ拡大を抑止する
+    document.addEventListener('dblclick', event => {
+      if (event.target.tagName === 'BUTTON') {
+        event.preventDefault();
+      }
+    });
+
+    // 保存済みの商品設定があれば読み込み、なければ初期設定を使う
+    function loadProductSettings() {
+      try {
+        const savedProducts = JSON.parse(localStorage.getItem(productSettingsKey));
+        const sourceProducts = Array.isArray(savedProducts) ? savedProducts : defaultProductData;
+        const normalizedProducts = sourceProducts.map(product => normalizeProduct(product)).filter(Boolean);
+        return normalizedProducts.length > 0 ? normalizedProducts : defaultProductData;
+      } catch (error) {
+        return defaultProductData;
+      }
+    }
+
+    // 商品設定の形式を整える
+    function normalizeProduct(product) {
+      if (!product || !product.id) return null;
+      const price = parseInt(product.price);
+      const maxStock = parseInt(product.maxStock);
+
+      return {
+        id: String(product.id),
+        name: product.name || '商品名未設定',
+        price: Number.isNaN(price) ? 0 : Math.max(0, price),
+        maxStock: Number.isNaN(maxStock) ? 0 : Math.max(0, maxStock)
+      };
+    }
+
+    // 商品設定を保存する
+    function saveProductsToStorage() {
+      localStorage.setItem(productSettingsKey, JSON.stringify(productData));
+    }
+
+    // パスワード確認後、商品設定フォームを表示する
+    function openAdminPanel() {
+      const inputPassword = prompt('管理画面のパスワードを入力してください');
+      if (inputPassword === null) return;
+
+      if (inputPassword !== adminPassword) {
+        alert('パスワードが違います。');
+        return;
+      }
+
+      renderAdminForm();
+      adminPanel.classList.add('open');
+      adminPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // 管理画面を閉じる
+    function closeAdminPanel() {
+      adminPanel.classList.remove('open');
+    }
+
+    // 商品名・価格・在庫を入力するフォームを作成する
+    function renderAdminForm() {
+      adminForm.innerHTML = productData.map(product => `
+        <div class="admin-row">
+          <input id="admin-name-${product.id}" type="text" value="${escapeHtml(product.name)}" aria-label="${escapeHtml(product.name)}の商品名">
+          <input id="admin-price-${product.id}" type="number" min="0" inputmode="numeric" value="${product.price}" aria-label="${escapeHtml(product.name)}の価格">
+          <input id="admin-stock-${product.id}" type="number" min="0" inputmode="numeric" value="${product.maxStock}" aria-label="${escapeHtml(product.name)}の在庫">
+          <button class="admin-delete" onclick="deleteProductSetting('${product.id}')">削除</button>
+        </div>
+      `).join('');
+    }
+
+    // 管理画面から商品を1つ追加する
+    function addProductSetting() {
+      const newProductNumber = productData.length + 1;
+      productData.push({
+        id: `item_${Date.now()}`,
+        name: `商品${newProductNumber}`,
+        price: 0,
+        maxStock: 0
+      });
+      saveProductsToStorage();
+      renderAdminForm();
+      renderProductList();
+      updateGrandTotal();
+      updateOrderSummary();
+      drawSalesChart();
+    }
+
+    // 管理画面から商品を削除する
+    function deleteProductSetting(id) {
+      const product = productData.find(p => p.id === id);
+      if (!product) return;
+
+      if (!confirm(`${product.name} を商品一覧から削除しますか？\n過去の販売履歴とCSV明細は残ります。`)) return;
+
+      productData = productData.filter(p => p.id !== id);
+      localStorage.removeItem(getOrderKey(id));
+      localStorage.removeItem(id);
+      saveProductsToStorage();
+      renderAdminForm();
+      renderProductList();
+      updateGrandTotal();
+      updateOrderSummary();
+      updateDailyTotal();
+      drawSalesChart();
+    }
+
+    // 管理画面で入力した商品設定を保存し、注文画面へ反映する
+    function saveProductSettings() {
+      const nextProductData = productData.map(product => {
+        const name = document.getElementById(`admin-name-${product.id}`).value.trim();
+        const price = parseInt(document.getElementById(`admin-price-${product.id}`).value);
+        const maxStock = parseInt(document.getElementById(`admin-stock-${product.id}`).value);
+
+        return {
+          id: product.id,
+          name: name || product.name,
+          price: Number.isNaN(price) ? product.price : Math.max(0, price),
+          maxStock: Number.isNaN(maxStock) ? product.maxStock : Math.max(0, maxStock)
+        };
+      });
+
+      productData = nextProductData;
+      saveProductsToStorage();
+      renderProductList();
+      updateGrandTotal();
+      updateOrderSummary();
+      updateDailyTotal();
+      drawSalesChart();
+      alert('商品設定を保存しました。');
+    }
+
+    // フォームに入れる文字がHTMLとして解釈されないようにする
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
+    // 個数を増減する処理
+    function changeCount(id, val) {
+      // 押されたボタンの商品IDから、表示要素と商品データを探す
+      const countEl = document.getElementById('count-' + id);
+      const product = productData.find(p => p.id === id);
+      let current = parseInt(countEl.innerText);
+      let next = current + val;
+      const soldCount = getSoldCount(id);
+      const orderLimit = Math.max(0, product.maxStock - soldCount);
+      
+      // マイナスや残り在庫数超過にならないように範囲を制限する
+      if (next < 0) next = 0; // 0個未満にはしない
+      if (next > orderLimit) next = orderLimit; // 確定済み売上を引いた残り在庫を超えない
+      
+      countEl.innerText = next;
+      localStorage.setItem(getOrderKey(id), next); // 現在の注文をスマホに保存
+      
+      updateItemStatus(id); // 在庫見た目の更新
+      updateGrandTotal(); // 現在の注文金額を再計算
+      updateOrderSummary(); // 合計金額下の注文リストを更新
+      clearChange(); // 注文内容が変わったらお釣り表示を一度クリア
+    }
+
+    // 現在の注文用localStorageキーを作る
+    function getOrderKey(id) {
+      return `currentOrder_${id}`;
+    }
+
+    // 本日確定した販売数を取得する
+    function getSoldCount(id) {
+      return parseInt(localStorage.getItem(id) || 0);
+    }
+
+    // 現在の注文数を取得する
+    function getCurrentOrderCount(id) {
+      return parseInt(localStorage.getItem(getOrderKey(id)) || 0);
+    }
+
+    // 確定した会計のまとまりを保存する
+    function saveOrderHistory(order) {
+      const orders = getOrderHistory();
+      orders.push(order);
+      localStorage.setItem(orderHistoryKey, JSON.stringify(orders));
+    }
+
+    // 保存済みの会計履歴を読み込む
+    function getOrderHistory() {
+      try {
+        return JSON.parse(localStorage.getItem(orderHistoryKey)) || [];
+      } catch (error) {
+        return [];
+      }
+    }
+
+    // タップされた時刻・商品・増減数を保存する処理
+    function saveSalesHistory(product, quantityChange, orderId, orderTime) {
+      const history = getSalesHistory();
+      history.push({
+        time: orderTime || new Date().toISOString(),
+        orderId: orderId || '',
+        productId: product.id,
+        productName: product.name,
+        price: product.price,
+        quantityChange: quantityChange,
+        salesAmount: product.price * quantityChange
+      });
+      localStorage.setItem(salesHistoryKey, JSON.stringify(history));
+    }
+
+    // 保存済みの販売履歴を読み込む処理
+    function getSalesHistory() {
+      try {
+        return JSON.parse(localStorage.getItem(salesHistoryKey)) || [];
+      } catch (error) {
+        return [];
+      }
+    }
+
+    // 商品ごとの在庫表示やボタンの無効化を切り替える処理
+    function updateItemStatus(id) {
+      // 確定済み売上と現在の注文数から残り在庫を計算し、表示状態を切り替える
+      const product = productData.find(p => p.id === id);
+      const stockEl = document.getElementById(`stock-${id}`);
+      const plusBtn = document.getElementById(`btn-plus-${id}`);
+      const cardEl = document.getElementById(`card-${id}`);
+      const soldEl = document.getElementById(`sold-${id}`);
+      const currentOrderCount = parseInt(document.getElementById('count-' + id).innerText);
+      const soldCount = getSoldCount(id);
+      
+      const remaining = product.maxStock - soldCount - currentOrderCount;
+      soldEl.innerText = `本日確定: ${soldCount}個`;
+      
+      // 見た目のリセット
+      stockEl.className = "stock-info";
+      cardEl.classList.remove("sold-out");
+      plusBtn.disabled = false;
+
+      if (remaining <= 0) {
+        stockEl.innerText = "【完売】在庫がありません";
+        stockEl.classList.add("danger");
+        cardEl.classList.add("sold-out");
+        plusBtn.disabled = true; // ＋ボタンを押せなくする
+      } else if (remaining <= 3) {
+        stockEl.innerText = `⚠️ 残りあと ${remaining} 個（在庫: ${product.maxStock}）`;
+        stockEl.classList.add("warning");
+      } else {
+        stockEl.innerText = `残りあと ${remaining} 個（在庫: ${product.maxStock}）`;
+      }
+    }
+
+    // 合計金額を計算して画面を更新する処理
+    function updateGrandTotal() {
+      const total = getCurrentTotal();
+      document.getElementById('grand-total').innerText = total.toLocaleString();
+    }
+
+    // 合計金額の下に、現在の注文内容を商品名リストとして表示する
+    function updateOrderSummary() {
+      const orderedProducts = productData.map(p => {
+        return {
+          name: p.name,
+          count: parseInt(document.getElementById('count-' + p.id).innerText),
+          subtotal: p.price * parseInt(document.getElementById('count-' + p.id).innerText)
+        };
+      }).filter(item => item.count > 0);
+
+      if (orderedProducts.length === 0) {
+        orderSummaryEl.innerHTML = '<div class="order-summary-empty">注文はまだありません</div>';
+        return;
+      }
+
+      orderSummaryEl.innerHTML = `
+        <div class="order-summary-title">注文内容</div>
+        ${orderedProducts.map(item => `
+          <div class="order-summary-row">
+            <span>${escapeHtml(item.name)} × ${item.count}</span>
+            <span>¥${item.subtotal.toLocaleString()}</span>
+          </div>
+        `).join('')}
+      `;
+    }
+
+    // 本日の確定売上金額を表示する
+    function updateDailyTotal() {
+      dailyTotalEl.innerText = getDailyTotal().toLocaleString();
+    }
+
+    // 確定時点の商品名・価格ごとに、販売履歴を集計する
+    function getDailySummaryRows() {
+      const summaryMap = {};
+
+      getSalesHistory().forEach(record => {
+        const name = record.productName || '商品名未設定';
+        const price = parseInt(record.price) || 0;
+        const quantity = parseInt(record.quantityChange) || 0;
+        const key = `${name}__${price}`;
+
+        if (!summaryMap[key]) {
+          summaryMap[key] = {
+            productName: name,
+            price: price,
+            quantity: 0,
+            subtotal: 0
+          };
+        }
+
+        summaryMap[key].quantity += quantity;
+        summaryMap[key].subtotal += price * quantity;
+      });
+
+      return Object.values(summaryMap).filter(row => row.quantity !== 0);
+    }
+
+    // 確定済みの販売履歴をCSVファイルとしてダウンロードする処理
+    function downloadSummaryCsv() {
+      const rows = [
+        ['商品名', '価格', '個数', '売上小計']
+      ];
+
+      getDailySummaryRows().forEach(row => {
+        rows.push([row.productName, row.price, row.quantity, row.subtotal]);
+      });
+
+      const total = getDailyTotal();
+      rows.push(['合計', '', '', total]);
+
+      const dateText = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      downloadCsvFile(rows, `売上集計_${dateText}.csv`);
+    }
+
+    // 販売時刻別の詳細明細CSVをダウンロードする
+    function downloadDetailCsv() {
+      const rows = [
+        ['販売時刻', '注文ID', '商品名', '価格', '個数', '売上小計']
+      ];
+
+      getSalesHistory()
+        .slice()
+        .sort((a, b) => new Date(a.time) - new Date(b.time))
+        .forEach(record => {
+          const price = parseInt(record.price) || 0;
+          const quantity = parseInt(record.quantityChange) || 0;
+          rows.push([
+            formatDateTime(record.time),
+            record.orderId || '',
+            record.productName || '商品名未設定',
+            price,
+            quantity,
+            price * quantity
+          ]);
+        });
+
+      const dateText = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      downloadCsvFile(rows, `販売明細_${dateText}.csv`);
+    }
+
+    // CSVを実際にファイルとして保存する
+    function downloadCsvFile(rows, fileName) {
+      const csvText = rows.map(row => row.map(escapeCsvValue).join(',')).join('\n');
+      const blob = new Blob(['\ufeff' + csvText], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+
+    // CSVに入れる時刻を見やすい形式にする
+    function formatDateTime(value) {
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return value || '';
+
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hour = String(date.getHours()).padStart(2, '0');
+      const minute = String(date.getMinutes()).padStart(2, '0');
+      const second = String(date.getSeconds()).padStart(2, '0');
+      return `${year}/${month}/${day} ${hour}:${minute}:${second}`;
+    }
+
+    // CSV内でカンマや改行が入っても崩れないように整える
+    function escapeCsvValue(value) {
+      const text = String(value);
+      return `"${text.replace(/"/g, '""')}"`;
+    }
+
+    // 預かり金額から現在の合計金額を引いて、お釣りを表示する処理
+    function calculateChange(receivedAmount) {
+      const total = getCurrentTotal();
+      const change = receivedAmount - total;
+      changeResult.classList.toggle('short', change < 0);
+
+      if (change < 0) {
+        changeResult.innerText = `${receivedAmount.toLocaleString()}円預かり：${Math.abs(change).toLocaleString()}円不足`;
+      } else {
+        changeResult.innerText = `${receivedAmount.toLocaleString()}円預かり：お釣り ${change.toLocaleString()}円`;
+      }
+    }
+
+    // 入力欄に打ち込んだ預かり金額でお釣りを計算する
+    function calculateCustomChange() {
+      const receivedAmount = parseInt(customCashInput.value);
+      if (Number.isNaN(receivedAmount) || receivedAmount < 0) {
+        alert('預かり金額を半角数字で入力してください。');
+        return;
+      }
+
+      calculateChange(receivedAmount);
+    }
+
+    // お釣り表示を初期状態に戻す
+    function clearChange() {
+      changeResult.classList.remove('short');
+      changeResult.innerText = '預かり金額をタップしてください';
+    }
+
+    // 現在の合計金額を数値で返す
+    function getCurrentTotal() {
+      return productData.reduce((sum, p) => {
+        const count = parseInt(document.getElementById('count-' + p.id).innerText);
+        return sum + (p.price * count);
+      }, 0);
+    }
+
+    // 本日の確定売上金額を数値で返す
+    function getDailyTotal() {
+      return getSalesHistory().reduce((sum, record) => {
+        const price = parseInt(record.price) || 0;
+        const quantity = parseInt(record.quantityChange) || 0;
+        return sum + (price * quantity);
+      }, 0);
+    }
+
+    // 現在の注文を本日の売上として確定する
+    function finalizeOrder() {
+      const orderTotal = getCurrentTotal();
+      if (orderTotal <= 0) {
+        alert('現在の注文が0個です。商品を追加してから確定してください。');
+        return;
+      }
+
+      if (!confirm(`この注文を確定しますか？\n注文金額: ${orderTotal.toLocaleString()}円`)) return;
+
+      const orderId = `order_${Date.now()}`;
+      const orderTime = new Date().toISOString();
+      const orderItems = [];
+
+      productData.forEach(p => {
+        const orderCount = parseInt(document.getElementById('count-' + p.id).innerText);
+        if (orderCount <= 0) return;
+
+        const nextSoldCount = getSoldCount(p.id) + orderCount;
+        localStorage.setItem(p.id, nextSoldCount);
+        saveSalesHistory(p, orderCount, orderId, orderTime);
+        orderItems.push({
+          productId: p.id,
+          productName: p.name,
+          price: p.price,
+          quantity: orderCount,
+          subtotal: p.price * orderCount
+        });
+        document.getElementById('count-' + p.id).innerText = 0;
+        localStorage.removeItem(getOrderKey(p.id));
+        updateItemStatus(p.id);
+      });
+
+      saveOrderHistory({
+        orderId: orderId,
+        time: orderTime,
+        total: orderTotal,
+        items: orderItems
+      });
+
+      clearChange();
+      updateGrandTotal();
+      updateOrderSummary();
+      updateDailyTotal();
+      drawSalesChart();
+    }
+
+    // 直前に確定した会計を取り消す
+    function cancelLastOrder() {
+      const orders = getOrderHistory();
+      const lastOrder = orders[orders.length - 1];
+
+      if (!lastOrder) {
+        alert('取り消せる会計がありません。');
+        return;
+      }
+
+      if (!confirm(`直前の会計を取り消しますか？\n金額: ${lastOrder.total.toLocaleString()}円`)) return;
+
+      lastOrder.items.forEach(item => {
+        const currentSoldCount = getSoldCount(item.productId);
+        localStorage.setItem(item.productId, Math.max(0, currentSoldCount - item.quantity));
+      });
+
+      const nextHistory = getSalesHistory().filter(record => record.orderId !== lastOrder.orderId);
+      localStorage.setItem(salesHistoryKey, JSON.stringify(nextHistory));
+      orders.pop();
+      localStorage.setItem(orderHistoryKey, JSON.stringify(orders));
+
+      renderProductList();
+      clearChange();
+      updateGrandTotal();
+      updateOrderSummary();
+      updateDailyTotal();
+      drawSalesChart();
+      alert('直前の会計を取り消しました。');
+    }
+
+    // 会計を確定せず、現在の注文だけ取り消す
+    function clearCurrentOrder() {
+      const orderTotal = getCurrentTotal();
+      if (orderTotal > 0 && !confirm('現在の注文だけ0に戻しますか？\n本日の確定売上は消えません。')) return;
+
+      productData.forEach(p => {
+        document.getElementById('count-' + p.id).innerText = 0;
+        localStorage.removeItem(getOrderKey(p.id));
+        updateItemStatus(p.id);
+      });
+
+      clearChange();
+      updateGrandTotal();
+      updateOrderSummary();
+    }
+
+    // 販売履歴を時間帯・商品ごとに集計し、簡易グラフを描画する
+    function drawSalesChart() {
+      const ctx = chartCanvas.getContext('2d');
+      const width = chartCanvas.width;
+      const height = chartCanvas.height;
+      const padding = 32;
+      const history = getSalesHistory();
+      const colors = ['#0d6efd', '#198754', '#fd7e14', '#dc3545', '#6f42c1', '#20c997'];
+      const hourlyProductTotals = {};
+
+      history.forEach(record => {
+        const date = new Date(record.time);
+        if (Number.isNaN(date.getTime())) return;
+        const hour = `${String(date.getHours()).padStart(2, '0')}:00`;
+        if (!hourlyProductTotals[hour]) hourlyProductTotals[hour] = {};
+        hourlyProductTotals[hour][record.productId] = (hourlyProductTotals[hour][record.productId] || 0) + record.quantityChange;
+      });
+
+      const labels = Object.keys(hourlyProductTotals).sort();
+      const hourlyTotals = labels.map(label => {
+        return productData.reduce((sum, product) => {
+          return sum + Math.max(0, hourlyProductTotals[label][product.id] || 0);
+        }, 0);
+      });
+      const maxValue = Math.max(...hourlyTotals, 1);
+
+      ctx.clearRect(0, 0, width, height);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, width, height);
+
+      ctx.strokeStyle = '#e5e7eb';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(padding, padding);
+      ctx.lineTo(padding, height - padding);
+      ctx.lineTo(width - padding, height - padding);
+      ctx.stroke();
+
+      if (labels.length === 0) {
+        ctx.fillStyle = '#666666';
+        ctx.font = '14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('まだ販売履歴がありません', width / 2, height / 2);
+        chartNote.innerText = '＋1をタップすると、時間帯別の販売履歴がここに反映されます。';
+        return;
+      }
+
+      const barAreaWidth = width - padding * 2;
+      const barWidth = Math.max(14, (barAreaWidth / labels.length) * 0.55);
+      const gap = barAreaWidth / labels.length;
+
+      labels.forEach((label, index) => {
+        const value = hourlyTotals[index];
+        const totalBarHeight = ((height - padding * 2 - 20) * value) / maxValue;
+        const x = padding + gap * index + (gap - barWidth) / 2;
+        let stackedY = height - padding;
+
+        productData.forEach((product, productIndex) => {
+          const productValue = Math.max(0, hourlyProductTotals[label][product.id] || 0);
+          if (productValue === 0) return;
+          const barHeight = (totalBarHeight * productValue) / value;
+          stackedY -= barHeight;
+          ctx.fillStyle = colors[productIndex % colors.length];
+          ctx.fillRect(x, stackedY, barWidth, barHeight);
+        });
+
+        ctx.fillStyle = '#333333';
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(value, x + barWidth / 2, stackedY - 5);
+
+        ctx.save();
+        ctx.translate(x + barWidth / 2, height - 10);
+        ctx.rotate(-Math.PI / 5);
+        ctx.fillText(label, 0, 0);
+        ctx.restore();
+      });
+
+      const legend = productData.map((product, index) => `■ ${product.name}`).join(' / ');
+      chartNote.innerText = `${legend}\nグラフは時間帯・商品ごとの販売個数です。マイナス操作は押し間違い修正として差し引いています。`;
+    }
+
+    // リセット処理
+    function resetCount() {
+      if(confirm('すべての商品の個数を0に戻しますか？\n（保存されているデータも消去されます）')) {
+        // 画面上の個数とブラウザ保存データを両方リセットする
+        productData.forEach(p => {
+          document.getElementById('count-' + p.id).innerText = 0;
+          localStorage.removeItem(p.id);
+          localStorage.removeItem(getOrderKey(p.id));
+          updateItemStatus(p.id);
+        });
+        localStorage.removeItem(salesHistoryKey);
+        clearChange();
+        updateGrandTotal();
+        updateOrderSummary();
+        updateDailyTotal();
+        drawSalesChart();
+      }
+    }
+  </script>
+
+</body>
+</html>
