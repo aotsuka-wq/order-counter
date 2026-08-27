@@ -16,17 +16,17 @@
     .order-summary-row { display: flex; justify-content: space-between; gap: 8px; border-top: 1px solid rgba(255,255,255,0.18); padding-top: 3px; margin-top: 3px; }
     .order-summary-empty { text-align: center; opacity: 0.9; }
     .item-list { margin-bottom: 12px; }
-    .item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding: 10px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: background 0.3s; }
+    .item { display: grid; grid-template-columns: minmax(0, 1fr) minmax(118px, 45%); gap: 8px; align-items: center; margin-bottom: 8px; padding: 10px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: background 0.3s; box-sizing: border-box; overflow: hidden; }
     .item.sold-out { background: #ffebeb; } /* 売り切れ時の背景 */
-    .item-info { display: flex; flex-direction: column; width: 55%; }
-    .item-name { font-weight: bold; font-size: 18px; word-break: break-all; }
-    .item-price { font-size: 14px; color: #666; margin-top: 2px; }
-    .stock-info { font-size: 13px; color: #28a745; font-weight: bold; margin-top: 2px; }
+    .item-info { display: flex; flex-direction: column; min-width: 0; }
+    .item-name { font-weight: bold; font-size: 18px; overflow-wrap: anywhere; line-height: 1.25; }
+    .item-price { font-size: 14px; color: #666; margin-top: 2px; overflow-wrap: anywhere; line-height: 1.25; }
+    .stock-info { font-size: 13px; color: #28a745; font-weight: bold; margin-top: 2px; overflow-wrap: anywhere; line-height: 1.25; }
     .stock-info.warning { color: #fd7e14; } /* 残りわずかの文字色 */
     .stock-info.danger { color: #dc3545; }  /* 売り切れの文字色 */
     .item-count { font-size: 26px; color: #007bff; font-weight: bold; margin-top: 5px; }
-    .sold-count { font-size: 12px; color: #555; margin-top: 2px; }
-    .btn-group { display: flex; gap: 8px; width: 45%; justify-content: flex-end; }
+    .sold-count { font-size: 12px; color: #555; margin-top: 2px; overflow-wrap: anywhere; line-height: 1.25; }
+    .btn-group { display: grid; grid-template-columns: minmax(42px, 0.85fr) minmax(68px, 1.55fr); gap: 8px; min-width: 0; justify-content: stretch; }
     button { font-size: 20px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
     .btn-plus { background: #007bff; color: white; flex: 2; padding: 15px 0; }
     .btn-plus:disabled { background: #cccccc; color: #666666; cursor: not-allowed; }
@@ -68,19 +68,19 @@
       h2 { margin: 0 0 8px; font-size: 20px; }
       .ipad-layout { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.9fr); gap: 12px; height: calc(100vh - 42px); }
       .order-column, .control-column { min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; overscroll-behavior: contain; }
-      .order-column { display: flex; flex-direction: column; gap: 10px; padding-right: 2px; }
+      .order-column { display: block; padding-right: 2px; }
       .control-column { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-content: start; padding-right: 2px; }
-      .total-box { position: static; margin-bottom: 0; padding: 10px; font-size: 18px; }
+      .total-box { position: sticky; top: 0; margin-bottom: 10px; padding: 10px; font-size: 18px; }
       .total-price { font-size: 34px; margin-top: 2px; }
       .order-summary { max-height: 110px; overflow: hidden; font-size: 12px; }
-      .item-list { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; align-content: start; margin-bottom: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+      .item-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; align-content: start; margin-bottom: 0; overflow: visible; padding-bottom: 12px; }
       .item { min-height: 88px; margin-bottom: 0; padding: 9px; }
       .item-name { font-size: 16px; }
       .item-price { font-size: 13px; }
       .stock-info { font-size: 12px; }
       .sold-count { font-size: 11px; }
       .item-count { font-size: 24px; margin-top: 2px; }
-      .btn-group { gap: 6px; width: 46%; }
+      .btn-group { gap: 6px; }
       .btn-plus { padding: 18px 0; font-size: 20px; }
       .btn-minus { padding: 18px 0; font-size: 17px; }
       .tool-panel { margin-bottom: 0; padding: 10px; }
