@@ -145,7 +145,7 @@ UTF-8 BOM付きで出力しているため、Excelでも文字化けしにくい
 
 ## 来年度への引き継ぎ
 
-GitHub Pagesなどで公開している場合は、公開URL(https://ohtsukaaoi-wq.github.io/order-counter/)を次の担当者に共有してください。
+GitHub Pagesなどで公開している場合は、公開URL (https://ohtsukaaoi-wq.github.io/order-counter/) を次の担当者に共有してください。
 
 次の担当者はスマートフォン、タブレット端末からURLを開くだけで使用できます。
 
