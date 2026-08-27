@@ -50,7 +50,7 @@
     .daily-total { margin-top: 10px; padding: 12px; border-radius: 8px; background: #eef7f1; color: #198754; font-weight: bold; text-align: center; }
     .admin-toggle { background: #343a40; color: white; width: 100%; padding: 12px; font-size: 15px; margin-bottom: 10px; }
     .admin-panel { display: none; }
-    .admin-panel.open { display: block; }
+    .admin-panel.open { display: block; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(720px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow-y: auto; z-index: 1000; box-shadow: 0 18px 40px rgba(0,0,0,0.35); -webkit-overflow-scrolling: touch; touch-action: pan-y; }
     .admin-row { display: grid; grid-template-columns: 1.2fr 0.7fr 0.7fr 54px; gap: 6px; margin-bottom: 8px; align-items: center; }
     .admin-labels { font-size: 12px; color: #666; font-weight: bold; }
     .admin-row input { width: 100%; box-sizing: border-box; font-size: 16px; padding: 10px 8px; border: 1px solid #cfd4da; border-radius: 8px; }
@@ -67,13 +67,13 @@
       body { max-width: none; height: 100%; padding: 10px; overflow: hidden; box-sizing: border-box; }
       h2 { margin: 0 0 8px; font-size: 20px; }
       .ipad-layout { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.9fr); gap: 12px; height: calc(100vh - 42px); }
-      .order-column, .control-column { min-height: 0; }
-      .order-column { display: flex; flex-direction: column; gap: 10px; }
-      .control-column { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-content: start; overflow: hidden; }
+      .order-column, .control-column { min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; overscroll-behavior: contain; }
+      .order-column { display: flex; flex-direction: column; gap: 10px; padding-right: 2px; }
+      .control-column { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-content: start; padding-right: 2px; }
       .total-box { position: static; margin-bottom: 0; padding: 10px; font-size: 18px; }
       .total-price { font-size: 34px; margin-top: 2px; }
       .order-summary { max-height: 110px; overflow: hidden; font-size: 12px; }
-      .item-list { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; align-content: start; margin-bottom: 0; overflow: hidden; }
+      .item-list { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; align-content: start; margin-bottom: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
       .item { min-height: 88px; margin-bottom: 0; padding: 9px; }
       .item-name { font-size: 16px; }
       .item-price { font-size: 13px; }
@@ -96,7 +96,7 @@
       .footer-btns { margin-top: 0; }
       #reset, .admin-toggle { padding: 12px 8px; font-size: 14px; margin-bottom: 0; }
       .admin-toggle, .admin-panel, .footer-btns, .control-wide { grid-column: 1 / -1; }
-      .admin-panel.open { max-height: 270px; overflow: auto; }
+      .admin-panel.open { max-height: calc(100vh - 48px); overflow-y: auto; }
       .daily-total { padding: 10px; font-size: 15px; }
     }
     @media (max-width: 420px) {
@@ -324,7 +324,6 @@
 
       renderAdminForm();
       adminPanel.classList.add('open');
-      adminPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     // 管理画面を閉じる
